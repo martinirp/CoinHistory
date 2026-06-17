@@ -1,0 +1,7 @@
+node_modules/
+.env
+session_cookie.txt
+cookies.json
+last_seen_tx.json
+*.png
+webhook_log.txt
