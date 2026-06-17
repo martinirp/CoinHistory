@@ -5,9 +5,18 @@ console.log('==================================================');
 console.log('[*] INICIANDO TODOS OS SERVIÇOS (MONITOR + SERVIDOR)');
 console.log('==================================================\n');
 
+const fs = require('fs');
+
 // 1. Iniciar o Servidor de Vendas (sales-site)
 const salesSiteDir = path.resolve(__dirname, '../Mauth/sales-site');
 console.log(`[*] Iniciando Servidor de Vendas em: ${salesSiteDir}`);
+
+if (!fs.existsSync(salesSiteDir)) {
+  console.error(`\n[-] ERRO CRÍTICO: A pasta do Servidor de Vendas não foi encontrada em: ${salesSiteDir}`);
+  console.error(`Certifique-se de clonar/copiar a pasta 'Mauth' para o servidor no mesmo nível da pasta 'CoinHistory'.\n`);
+  process.exit(1);
+}
+
 const serverProc = spawn(process.execPath, ['server.js'], {
   cwd: salesSiteDir,
   stdio: 'inherit'
