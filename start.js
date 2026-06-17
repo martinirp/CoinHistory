@@ -10,16 +10,14 @@ const salesSiteDir = path.resolve(__dirname, '../Mauth/sales-site');
 console.log(`[*] Iniciando Servidor de Vendas em: ${salesSiteDir}`);
 const serverProc = spawn('node', ['server.js'], {
   cwd: salesSiteDir,
-  stdio: 'inherit',
-  shell: true
+  stdio: 'inherit'
 });
 
 // 2. Iniciar o Monitor de Coins
 console.log(`[*] Iniciando Monitor de Coins em: ${__dirname}`);
 const monitorProc = spawn('node', ['monitor.js'], {
   cwd: __dirname,
-  stdio: 'inherit',
-  shell: true
+  stdio: 'inherit'
 });
 
 // Garante que ambos morram se o processo principal for interrompido (ex: Ctrl+C)
