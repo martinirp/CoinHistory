@@ -157,6 +157,8 @@ async function addUuidToGithub(uuid, character = 'Unknown') {
   const repo = (process.env.HWID_REPO_NAME || '').trim();
   const path = (process.env.HWID_FILE_PATH || '').trim();
 
+  console.log(`[*] addUuidToGithub configs: owner='${owner}', repo='${repo}', path='${path}', tokenLength=${token.length}`);
+
   if (!token || token.includes('insira_seu_token')) {
     throw new Error('Chave de API do GitHub (MAUTH_GITHUB_TOKEN) nao configurada no .env do servidor de vendas.');
   }
