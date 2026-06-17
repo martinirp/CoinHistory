@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const OTPAuth = require('otpauth');
 
 // Carregar variáveis de ambiente
-const { TIBIA_EMAIL, TIBIA_PASSWORD, TIBIA_TOTP_KEY, WEBHOOK_URL } = process.env;
+const { TIBIA_EMAIL, TIBIA_PASSWORD, TIBIA_TOTP_KEY, WEBHOOK_URL, PUPPETEER_EXECUTABLE_PATH } = process.env;
 const POLL_INTERVAL_SECONDS = parseInt(process.env.POLL_INTERVAL_SECONDS || '60', 10);
 const HEADLESS = process.env.HEADLESS === 'true';
 const USER_AGENT = process.env.USER_AGENT || 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 OPR/95.0.0.0';
@@ -34,6 +34,7 @@ async function loginAndSaveSession() {
   console.log('[*] Iniciando navegador para realizar login...');
   const browser = await puppeteer.launch({
     headless: HEADLESS,
+    executablePath: PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       '--disable-blink-features=AutomationControlled',
       '--no-sandbox',
@@ -125,6 +126,7 @@ async function loginAndSaveSession() {
 async function fetchCoinsTransactions() {
   const browser = await puppeteer.launch({
     headless: HEADLESS,
+    executablePath: PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       '--disable-blink-features=AutomationControlled',
       '--no-sandbox',
