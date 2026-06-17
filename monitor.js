@@ -34,7 +34,11 @@ async function loginAndSaveSession() {
   console.log('[*] Iniciando navegador para realizar login...');
   const browser = await puppeteer.launch({
     headless: HEADLESS,
-    args: ['--disable-blink-features=AutomationControlled']
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      '--no-sandbox',
+      '--disable-setuid-sandbox'
+    ]
   });
   const page = await browser.newPage();
   await page.setUserAgent(USER_AGENT);
@@ -121,7 +125,11 @@ async function loginAndSaveSession() {
 async function fetchCoinsTransactions() {
   const browser = await puppeteer.launch({
     headless: HEADLESS,
-    args: ['--disable-blink-features=AutomationControlled']
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      '--no-sandbox',
+      '--disable-setuid-sandbox'
+    ]
   });
   const page = await browser.newPage();
   await page.setUserAgent(USER_AGENT);
