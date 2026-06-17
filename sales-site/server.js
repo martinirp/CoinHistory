@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -151,7 +151,7 @@ app.post('/api/confirm-payment', async (req, res) => {
 
 // Envia a UUID autorizada para a keys.txt no GitHub
 async function addUuidToGithub(uuid) {
-  const token = (process.env.MAUTH_GITHUB_TOKEN || '').trim();
+  const token = (process.env.MAUTH_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '').trim();
   const owner = (process.env.HWID_REPO_OWNER || '').trim();
   const repo = (process.env.HWID_REPO_NAME || '').trim();
   const path = (process.env.HWID_FILE_PATH || '').trim();
