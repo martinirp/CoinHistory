@@ -132,9 +132,10 @@ app.post('/api/confirm-payment', async (req, res) => {
       });
     }
 
+    const officialCharName = payments[paymentIdx].character;
     // Pagamento encontrado! Adicionar a licença no GitHub
-    console.log(`[*] Pagamento de '${character}' localizado. Atualizando chaves no GitHub para UUID: ${cleanUuid}...`);
-    await addUuidToGithub(cleanUuid);
+    console.log(`[*] Pagamento de '${officialCharName}' localizado. Atualizando chaves no GitHub para UUID: ${cleanUuid}...`);
+    await addUuidToGithub(cleanUuid, officialCharName);
 
     // Marcar pagamento como usado e salvar
     payments[paymentIdx].used = true;
@@ -150,7 +151,7 @@ app.post('/api/confirm-payment', async (req, res) => {
 });
 
 // Envia a UUID autorizada para a keys.txt no GitHub
-async function addUuidToGithub(uuid) {
+async function addUuidToGithub(uuid, character = 'Unknown') {
   const token = (process.env.MAUTH_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '').trim();
   const owner = (process.env.HWID_REPO_OWNER || '').trim();
   const repo = (process.env.HWID_REPO_NAME || '').trim();
@@ -190,12 +191,13 @@ async function addUuidToGithub(uuid) {
   if (!updatedText.endsWith('\n') && updatedText.length > 0) {
     updatedText += '\n';
   }
+  updatedText += `# Boneco: ${character}\n`;
   updatedText += `${cleanUuid}\n`;
 
   // 4. Salvar de volta no GitHub (PUT)
   console.log(`[*] Gravando novo UUID no arquivo keys.txt do GitHub...`);
   const putBody = {
-    message: `Add authorized license key: ${cleanUuid}`,
+    message: `Add authorized license key: ${cleanUuid} (${character})`,
     content: Buffer.from(updatedText, 'utf8').toString('base64'),
     sha: currentSha,
     branch: 'main'
