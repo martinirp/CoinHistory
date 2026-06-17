@@ -1,40 +1,17 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 console.log('==================================================');
 console.log('[*] INICIANDO TODOS OS SERVIÇOS (MONITOR + SERVIDOR)');
 console.log('==================================================\n');
 
-require('dotenv').config();
-const fs = require('fs');
-
-// 1. Iniciar o Servidor de Vendas (sales-site)
-let salesSiteDir = process.env.SALES_SITE_DIR;
-
-if (!salesSiteDir) {
-  const possiblePaths = [
-    path.resolve(__dirname, '../Mauth/sales-site'),
-    path.resolve(__dirname, '../sales-site')
-  ];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      salesSiteDir = p;
-      break;
-    }
-  }
-  if (!salesSiteDir) {
-    salesSiteDir = possiblePaths[0]; // fallback
-  }
-} else {
-  salesSiteDir = path.resolve(salesSiteDir);
-}
-
+// 1. Iniciar o Servidor de Vendas (sales-site) local
+const salesSiteDir = path.join(__dirname, 'sales-site');
 console.log(`[*] Iniciando Servidor de Vendas em: ${salesSiteDir}`);
 
 if (!fs.existsSync(salesSiteDir)) {
-  console.error(`\n[-] ERRO CRÍTICO: A pasta do Servidor de Vendas não foi encontrada em: ${salesSiteDir}`);
-  console.error(`Certifique-se de que a pasta 'sales-site' ou 'Mauth/sales-site' está instalada no servidor.`);
-  console.error(`Você também pode definir o caminho correto no arquivo .env usando a variável: SALES_SITE_DIR=/caminho/do/site\n`);
+  console.error(`\n[-] ERRO CRÍTICO: A pasta do Servidor de Vendas não foi encontrada em: ${salesSiteDir}\n`);
   process.exit(1);
 }
 

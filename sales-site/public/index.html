@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M·Auth — Adquirir Licença</title>
+    <!-- Fonte Google Outfit & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Background Noir com Grid e Brilhos -->
+    <div class="noir-background">
+        <div class="glow-orb target-orb-1"></div>
+        <div class="glow-orb target-orb-2"></div>
+        <div class="bg-grid"></div>
+    </div>
+
+    <!-- Container Central -->
+    <main class="container">
+        
+        <!-- Header / Logo -->
+        <header class="app-header">
+            <div class="logo">
+                <span class="logo-symbol">AUTH</span>
+                <span class="logo-accent">· X</span>
+            </div>
+            <p class="tagline">Gerenciador Seguro de Contas Tibia & Autenticador TOTP</p>
+        </header>
+
+        <section class="sales-grid">
+            
+            <!-- Apresentação do Produto -->
+            <div class="product-info">
+                <h1 class="title">Adquira sua Licença do <span class="highlight">M·Auth</span></h1>
+                <p class="description">
+                    Desbloqueie o poder do autenticador de contas definitivo. Uma ferramenta portátil, criptografada localmente e integrada ao Windows para automação instantânea sem perda de contas.
+                </p>
+
+                <!-- Benefícios -->
+                <div class="features-list">
+                    <div class="feature-item">
+                        <div class="feature-icon">🛡️</div>
+                        <div class="feature-content">
+                            <h3>Segurança Offline e Criptografia</h3>
+                            <p>As contas e senhas mestras ficam salvas apenas no seu computador com proteção AES-256.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-content">
+                            <h3>Automação PowerShell Avançada</h3>
+                            <p>Otimize sua gameplay com o Login Automatizado <i>stealth</i>, Loot Splitter de alta precisão e Smart Exit de resposta instantânea para situações críticas.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🔄</div>
+                        <div class="feature-content">
+                            <h3>Sincronização Integrada</h3>
+                            <p>Acompanhe level, vocação e status de login dos seus personagens diretamente no grid do app.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Caixa de Compra / Checkout -->
+            <div class="checkout-card">
+                
+                <!-- Progresso de Etapa -->
+                <div class="steps-indicator">
+                    <span class="step-dot active" id="dot-1" data-step="1">1</span>
+                    <span class="step-line"></span>
+                    <span class="step-dot" id="dot-2" data-step="2">2</span>
+                    <span class="step-line"></span>
+                    <span class="step-dot" id="dot-3" data-step="3">3</span>
+                </div>
+
+                <div class="card-inner">
+                    
+                    <!-- ETAPA 1: Nome do Personagem e UUID -->
+                    <div class="step-content active" id="step-1">
+                        <h2>Dados de Ativação</h2>
+                        <p class="subtitle">Insira as informações para validação e liberação automática da sua licença.</p>
+
+                        <div class="input-group">
+                            <label for="char-name">Seu Personagem no Tibia</label>
+                            <input type="text" id="char-name" placeholder="Ex: Nora Fylap" autocomplete="off">
+                            <span class="input-desc">Este personagem será usado para cruzar o envio de Tibia Coins.</span>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="hwid-uuid">UUID de Hardware da sua Máquina</label>
+                            <input type="text" id="hwid-uuid" placeholder="Ex: F60AC7D1-EAD3-77E2-E60F-BCFCE78A91BA" autocomplete="off">
+                            <span class="input-desc">UUID exibida na tela vermelha de bloqueio do seu M-Auth.</span>
+                        </div>
+
+                        <button class="btn-primary" id="btn-next-1">Continuar</button>
+                    </div>
+
+                    <!-- ETAPA 2: Validação do Personagem -->
+                    <div class="step-content" id="step-2">
+                        <h2>Confirmar Personagem</h2>
+                        <p class="subtitle">Verifique se as informações abaixo correspondem ao seu boneco oficial.</p>
+
+                        <div class="character-preview-card" id="char-preview">
+                            <div class="preview-header">
+                                <span class="status-indicator"></span>
+                                <h3 id="preview-name">Buscando...</h3>
+                            </div>
+                            <div class="preview-body">
+                                <div class="preview-stat">
+                                    <span class="label">Mundo</span>
+                                    <span class="value" id="preview-world">-</span>
+                                </div>
+                                <div class="preview-stat">
+                                    <span class="label">Level</span>
+                                    <span class="value" id="preview-level">-</span>
+                                </div>
+                                <div class="preview-stat">
+                                    <span class="label">Vocação</span>
+                                    <span class="value" id="preview-vocation">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="btn-group">
+                            <button class="btn-secondary" id="btn-back-2">Voltar</button>
+                            <button class="btn-primary" id="btn-next-2">Tudo Certo</button>
+                        </div>
+                    </div>
+
+                    <!-- ETAPA 3: Instruções de Envio e Confirmação -->
+                    <div class="step-content" id="step-3">
+                        <h2>Instruções de Pagamento</h2>
+                        <p class="subtitle">Envie as moedas dentro do jogo para liberar sua licença automaticamente.</p>
+
+                        <div class="payment-instructions">
+                            <div class="instruction-box">
+                                <p class="action">Envie <span class="accent-text">25 Tibia Coins</span></p>
+                                <p class="target">para o personagem: <strong id="recipient-name" class="selectable">Nora Fylap</strong></p>
+                            </div>
+                            <div class="tip-box">
+                                <span class="tip-icon">ℹ️</span>
+                                <p>O envio é 100% automático. Nosso monitor lerá o histórico da conta e liberará sua licença assim que as moedas forem presenteadas.</p>
+                            </div>
+                        </div>
+
+                        <div class="loader-container" id="payment-loader" style="display: none;">
+                            <div class="spinner"></div>
+                            <p id="loader-text">Aguardando confirmação do pagamento...</p>
+                        </div>
+
+                        <div class="error-msg" id="payment-error"></div>
+
+                        <div class="btn-group">
+                            <button class="btn-secondary" id="btn-back-3">Voltar</button>
+                            <button class="btn-primary" id="btn-confirm">Confirmar Envio</button>
+                        </div>
+                    </div>
+
+                    <!-- ETAPA 4: Sucesso -->
+                    <div class="step-content" id="step-4">
+                        <div class="success-header">
+                            <span class="success-icon">✔️</span>
+                            <h2>Licença Autorizada!</h2>
+                        </div>
+                        <p class="subtitle">O pagamento de 25 Tibia Coins foi recebido e seu UUID foi registrado com sucesso.</p>
+
+                        <div class="hwid-registered-box">
+                            <span class="label">UUID Habilitada no keys.txt:</span>
+                            <code id="success-uuid">-</code>
+                        </div>
+
+                        <p class="info-note">Você já pode abrir o seu M·Auth. A tela de bloqueio sumirá e o app iniciará normalmente.</p>
+
+                        <button class="btn-primary" onclick="window.location.reload()">Adquirir Outra Licença</button>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>© 2026 M·Auth. Todos os direitos reservados. Design e licenças oficiais por Martinirp.</p>
+        </footer>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

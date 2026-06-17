@@ -5,3 +5,4 @@ cookies.json
 last_seen_tx.json
 *.png
 webhook_log.txt
+payments.json
