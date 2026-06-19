@@ -102,14 +102,16 @@ app.post('/api/webhook-payment', (req, res) => {
 // Funções para checagem manual sob demanda no Tibia.com
 function runManualCheck() {
   const { execSync, exec } = require('child_process');
+  const os = require('os');
+  const pythonCmd = process.env.PYTHON_CMD || (os.platform() === 'win32' ? 'python' : 'python3');
   
   return new Promise((resolve) => {
     const scraperPath = path.join(__dirname, '..', 'scraper.py');
     const projectDir = path.join(__dirname, '..');
     
-    console.log('[*] Executando checagem manual do scraper.py a pedido do usuario...');
+    console.log(`[*] Executando checagem manual do scraper.py a pedido do usuario... (${pythonCmd})`);
     
-    exec('python scraper.py', { cwd: projectDir }, (error, stdout, stderr) => {
+    exec(`${pythonCmd} scraper.py`, { cwd: projectDir }, (error, stdout, stderr) => {
       if (error) {
         console.error(`[-] Erro ao executar scraper.py manual: ${error.message}`);
         return resolve(false);
@@ -124,10 +126,10 @@ function runManualCheck() {
           const scriptPath = path.join(__dirname, '..', '..', 'TibiaScraperTest', 'sb_login.py');
           const loginDir = path.join(__dirname, '..', '..', 'TibiaScraperTest');
           try {
-            execSync(`python "${scriptPath}"`, { cwd: loginDir });
+            execSync(`${pythonCmd} "${scriptPath}"`, { cwd: loginDir });
             
             // Tenta rodar o scraper de novo
-            const secondStdout = execSync('python scraper.py', { cwd: projectDir });
+            const secondStdout = execSync(`${pythonCmd} scraper.py`, { cwd: projectDir });
             const secondResult = JSON.parse(secondStdout.toString().trim());
             if (secondResult.status === 'success') {
               processScraperTransactions(secondResult.transactions);
