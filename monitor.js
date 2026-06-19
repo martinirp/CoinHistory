@@ -35,7 +35,7 @@ function renewSession() {
   const { execSync } = require('child_process');
   const path = require('path');
   const os = require('os');
-  const scriptPath = path.join(__dirname, '..', 'TibiaScraperTest', 'sb_login.py');
+  const scriptPath = path.join(__dirname, 'sb_login.py');
   const pythonCmd = process.env.PYTHON_CMD || (os.platform() === 'win32' ? 'python' : 'python3');
   
   console.log(`[*] Executando sb_login.py para renovar a sessao no Tibia... (${pythonCmd})`);

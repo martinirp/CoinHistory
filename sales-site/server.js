@@ -122,9 +122,8 @@ function runManualCheck() {
         
         // Se a sessão estiver expirada, tenta renovar
         if (result.error === 'session_expired') {
-          console.log('[*] Sessao expirou na checagem manual. Tentando renovar via login automático...');
-          const scriptPath = path.join(__dirname, '..', '..', 'TibiaScraperTest', 'sb_login.py');
-          const loginDir = path.join(__dirname, '..', '..', 'TibiaScraperTest');
+          const scriptPath = path.join(__dirname, '..', 'sb_login.py');
+          const loginDir = path.join(__dirname, '..');
           try {
             execSync(`${pythonCmd} "${scriptPath}"`, { cwd: loginDir });
             
