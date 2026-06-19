@@ -35,8 +35,9 @@ url = "https://www.tibia.com/account/?subtopic=accountmanagement"
 print(f"[*] Iniciando SeleniumBase UC Mode para {url}...")
 
 # UC=True ativa o Undetected-Chromedriver para burlar Cloudflare Turnstile
+# xvfb=True roda o navegador real em um display virtual na memória (melhor para burlar Cloudflare)
 # chromium_arg="--no-sandbox,--disable-dev-shm-usage" é essencial para rodar no Termux PRoot
-with SB(uc=True, headless=True, browser="chrome", chromium_arg="--no-sandbox,--disable-dev-shm-usage") as sb:
+with SB(uc=True, xvfb=True, browser="chrome", chromium_arg="--no-sandbox,--disable-dev-shm-usage") as sb:
     print("[*] Acessando a pagina do Tibia...")
     sb.uc_open_with_reconnect(url, reconnect_time=4)
     
