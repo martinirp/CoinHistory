@@ -99,6 +99,88 @@ app.post('/api/webhook-payment', (req, res) => {
   }
 });
 
+// Funções para checagem manual sob demanda no Tibia.com
+function runManualCheck() {
+  const { execSync, exec } = require('child_process');
+  
+  return new Promise((resolve) => {
+    const scraperPath = path.join(__dirname, '..', 'scraper.py');
+    const projectDir = path.join(__dirname, '..');
+    
+    console.log('[*] Executando checagem manual do scraper.py a pedido do usuario...');
+    
+    exec('python scraper.py', { cwd: projectDir }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`[-] Erro ao executar scraper.py manual: ${error.message}`);
+        return resolve(false);
+      }
+      
+      try {
+        const result = JSON.parse(stdout.trim());
+        
+        // Se a sessão estiver expirada, tenta renovar
+        if (result.error === 'session_expired') {
+          console.log('[*] Sessao expirou na checagem manual. Tentando renovar via login automático...');
+          const scriptPath = path.join(__dirname, '..', '..', 'TibiaScraperTest', 'sb_login.py');
+          const loginDir = path.join(__dirname, '..', '..', 'TibiaScraperTest');
+          try {
+            execSync(`python "${scriptPath}"`, { cwd: loginDir });
+            
+            // Tenta rodar o scraper de novo
+            const secondStdout = execSync('python scraper.py', { cwd: projectDir });
+            const secondResult = JSON.parse(secondStdout.toString().trim());
+            if (secondResult.status === 'success') {
+              processScraperTransactions(secondResult.transactions);
+              return resolve(true);
+            }
+          } catch (err) {
+            console.error(`[-] Falha ao renovar sessao na checagem manual: ${err.message}`);
+          }
+          return resolve(false);
+        }
+        
+        if (result.status === 'success') {
+          processScraperTransactions(result.transactions);
+          return resolve(true);
+        }
+        return resolve(false);
+      } catch (err) {
+        console.error(`[-] Erro ao processar resultado do scraper manual: ${err.message}. Saida: ${stdout}`);
+        return resolve(false);
+      }
+    });
+  });
+}
+
+function processScraperTransactions(transactions) {
+  if (!transactions || !Array.isArray(transactions)) return;
+  
+  const payments = loadPayments();
+  let updated = false;
+  
+  for (const tx of transactions) {
+    if (tx.amount <= 0) continue;
+    
+    const exists = payments.some(p => p.id === tx.id);
+    if (!exists) {
+      payments.push({
+        id: tx.id,
+        date: tx.date,
+        character: tx.character,
+        amount: tx.amount,
+        used: false,
+        receivedAt: new Date().toISOString()
+      });
+      updated = true;
+      console.log(`[+] Pagamento registrado via checagem manual: ${tx.amount} TC de '${tx.character}'`);
+    }
+  }
+  
+  if (updated) {
+    savePayments(payments);
+  }
+}
+
 // Confirmar pagamento e adicionar licença no GitHub keys.txt
 app.post('/api/confirm-payment', async (req, res) => {
   const { character, uuid } = req.body;
@@ -116,19 +198,33 @@ app.post('/api/confirm-payment', async (req, res) => {
   }
 
   try {
-    const payments = loadPayments();
-    
-    // Procurar uma transação válida (não usada) do personagem correto, com valor de moedas maior ou igual ao configurado
+    let payments = loadPayments();
     const requiredAmount = parseInt(process.env.COINS_AMOUNT || '25', 10);
-    const paymentIdx = payments.findIndex(p => 
+    
+    // 1. Procura primeiro no banco local
+    let paymentIdx = payments.findIndex(p => 
       p.character.trim().toLowerCase() === cleanChar && 
       p.amount >= requiredAmount && 
       !p.used
     );
 
+    // 2. Se não achar, força uma checagem manual imediata no site do Tibia
+    if (paymentIdx === -1) {
+      console.log(`[*] Pagamento nao encontrado localmente para '${character}'. Executando checagem manual imediata...`);
+      await runManualCheck();
+      
+      // Recarrega os pagamentos atualizados
+      payments = loadPayments();
+      paymentIdx = payments.findIndex(p => 
+        p.character.trim().toLowerCase() === cleanChar && 
+        p.amount >= requiredAmount && 
+        !p.used
+      );
+    }
+
     if (paymentIdx === -1) {
       return res.status(404).json({ 
-        error: `Pagamento nao encontrado no nosso historico de Nora Fylap. Certifique-se de ter enviado ${requiredAmount} Tibia Coins de '${character}' e aguarde alguns segundos.` 
+        error: `Pagamento nao encontrado no nosso historico de Nora Fylap. Certifique-se de ter enviado ${requiredAmount} Tibia Coins de '${character}' e tente novamente.` 
       });
     }
 
@@ -170,21 +266,28 @@ async function addUuidToGithub(uuid, character = 'Unknown') {
     'User-Agent': 'Mauth-Sales-App'
   };
 
-  // 1. Baixar o keys.txt atual do GitHub
+  // 1. Baixar o arquivo de licenças atual do GitHub (ou preparar criação caso não exista)
   console.log(`[*] Buscando sha do arquivo ${path} no GitHub...`);
   const getRes = await fetch(url, { headers });
-  if (!getRes.ok) {
-    throw new Error(`Falha ao ler keys.txt do GitHub: ${getRes.status} ${getRes.statusText}`);
+  
+  let currentSha = undefined;
+  let contentText = "";
+
+  if (getRes.status === 404) {
+    console.log(`[*] Arquivo ${path} nao existe no GitHub. Ele sera criado automaticamente.`);
+  } else if (!getRes.ok) {
+    throw new Error(`Falha ao ler ${path} do GitHub: ${getRes.status} ${getRes.statusText}`);
+  } else {
+    const getJson = await getRes.json();
+    currentSha = getJson.sha;
+    contentText = Buffer.from(getJson.content, 'base64').toString('utf8');
   }
-  const getJson = await getRes.json();
-  const currentSha = getJson.sha;
-  const contentText = Buffer.from(getJson.content, 'base64').toString('utf8');
 
   // 2. Verificar se o UUID já está lá
   const cleanUuid = uuid.trim().toUpperCase();
   const lines = contentText.split('\n').map(l => l.trim().toUpperCase());
   if (lines.includes(cleanUuid)) {
-    console.log(`[*] UUID ${cleanUuid} ja cadastrado no keys.txt do GitHub.`);
+    console.log(`[*] UUID ${cleanUuid} ja cadastrado no arquivo ${path} do GitHub.`);
     return true;
   }
 
@@ -197,13 +300,16 @@ async function addUuidToGithub(uuid, character = 'Unknown') {
   updatedText += `${cleanUuid}\n`;
 
   // 4. Salvar de volta no GitHub (PUT)
-  console.log(`[*] Gravando novo UUID no arquivo keys.txt do GitHub...`);
+  console.log(`[*] Gravando novo UUID no arquivo ${path} do GitHub...`);
   const putBody = {
     message: `Add authorized license key: ${cleanUuid} (${character})`,
     content: Buffer.from(updatedText, 'utf8').toString('base64'),
-    sha: currentSha,
     branch: 'main'
   };
+  
+  if (currentSha) {
+    putBody.sha = currentSha;
+  }
 
   const putRes = await fetch(url, {
     method: 'PUT',

@@ -30,213 +30,58 @@ function getTotpToken(secret) {
 }
 
 // Fluxo de login e salvamento de sessão
-async function loginAndSaveSession() {
-  console.log('[*] Iniciando navegador para realizar login...');
-  const browser = await puppeteer.launch({
-    headless: HEADLESS,
-    executablePath: PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: [
-      '--disable-blink-features=AutomationControlled',
-      '--no-sandbox',
-      '--disable-setuid-sandbox'
-    ]
-  });
-  const page = await browser.newPage();
-  await page.setUserAgent(USER_AGENT);
-  await page.setViewport({ width: 1920, height: 1080 });
-
+// Renova a sessão usando o SeleniumBase UC Mode (script em Python)
+function renewSession() {
+  const { execSync } = require('child_process');
+  const path = require('path');
+  const scriptPath = path.join(__dirname, '..', 'TibiaScraperTest', 'sb_login.py');
+  
+  console.log(`[*] Executando sb_login.py para renovar a sessao no Tibia...`);
   try {
-    const loginUrl = 'https://www.tibia.com/account/?subtopic=accountmanagement';
-    console.log(`[*] Navegando para ${loginUrl}...`);
-    await page.goto(loginUrl, { waitUntil: 'load' });
-
-    // Espera até 15 segundos pela caixa de login ou pela confirmação de logado
-    try {
-      await Promise.race([
-        page.waitForSelector('input[name="loginemail"]', { visible: true, timeout: 15000 }),
-        page.waitForSelector('a[href*="page=logout"]', { visible: true, timeout: 15000 })
-      ]);
-    } catch (err) {
-      console.log(`[*] Timeout ao esperar tela de login/logout: ${err.message}`);
-    }
-
-    const content = await page.content();
-    if (content.includes('Logout')) {
-      console.log('[*] Ja logado! Salvando cookies...');
-      const cookies = await page.cookies();
-      fs.writeFileSync(COOKIES_FILE, JSON.stringify(cookies, null, 2));
-      await browser.close();
-      return true;
-    }
-
-    console.log('[*] Preenchendo e-mail e senha...');
-    await page.type('input[name="loginemail"]', TIBIA_EMAIL);
-    await page.type('input[name="loginpassword"]', TIBIA_PASSWORD);
-
-    console.log('[*] Clicando no login...');
-    await Promise.all([
-      page.click('form[action*="accountmanagement"] input[type="submit"]'),
-      page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {})
-    ]);
-
-    // Verificar se a tela de 2FA (token) é exibida
-    const tokenInput = await page.$('input[name="token"]');
-    if (tokenInput) {
-      console.log('[*] Campo de token 2FA detectado. Gerando codigo TOTP...');
-      const code = getTotpToken(TIBIA_TOTP_KEY);
-      if (!code) {
-        throw new Error('Chave TOTP invalida ou ausente no .env');
-      }
-      console.log(`[*] Token gerado: ${code}. Preenchendo...`);
-      await page.type('input[name="token"]', code);
-
-      console.log('[*] Enviando token 2FA...');
-      await Promise.all([
-        page.click('form[action*="accountmanagement"] input[type="submit"]'),
-        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {})
-      ]);
-    }
-
-    const contentAfterLogin = await page.content();
-    if (contentAfterLogin.includes('Logout')) {
-      console.log('[*] Login efetuado com sucesso!');
-      const cookies = await page.cookies();
-      fs.writeFileSync(COOKIES_FILE, JSON.stringify(cookies, null, 2));
-      await browser.close();
-      return true;
-    } else {
-      console.log('[*] Falha no login. Verifique as credenciais ou a chave TOTP.');
-      await page.screenshot({ path: 'login_failed.png' });
-      console.log('[*] Screenshot da tela de erro salva como "login_failed.png".');
-      await browser.close();
-      return false;
-    }
+    const stdout = execSync(`python "${scriptPath}"`, { encoding: 'utf8' });
+    console.log(stdout);
+    return stdout.includes('Cookies de sessao salvos com sucesso');
   } catch (err) {
-    console.error(`[*] Erro durante o login: ${err.message}`);
-    try {
-      await page.screenshot({ path: 'login_error.png' });
-      console.log('[*] Screenshot do erro salva como "login_error.png".');
-    } catch (scre) {}
-    await browser.close();
+    console.error(`[-] Erro ao executar sb_login.py: ${err.message}`);
     return false;
   }
 }
 
 // Recuperar e parsear a página de moedas usando a sessão ativa
 async function fetchCoinsTransactions() {
-  const browser = await puppeteer.launch({
-    headless: HEADLESS,
-    executablePath: PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: [
-      '--disable-blink-features=AutomationControlled',
-      '--no-sandbox',
-      '--disable-setuid-sandbox'
-    ]
-  });
-  const page = await browser.newPage();
-  await page.setUserAgent(USER_AGENT);
-  await page.setViewport({ width: 1920, height: 1080 });
-
-  try {
-    if (fs.existsSync('session_cookie.txt')) {
-      const cookieStr = fs.readFileSync('session_cookie.txt', 'utf8').trim();
-      
-      // Converte a string de cookie "chave=valor; chave2=valor2" em objetos que o Puppeteer entende no Cookie Jar
-      const cookies = cookieStr.split(';').map(pair => {
-        const eqIdx = pair.indexOf('=');
-        if (eqIdx === -1) return null;
-        const name = pair.substring(0, eqIdx).trim();
-        const value = pair.substring(eqIdx + 1).trim();
-        return {
-          name,
-          value,
-          domain: '.tibia.com',
-          path: '/',
-          secure: true,
-          sameSite: 'Lax'
-        };
-      }).filter(Boolean);
-      
-      await page.setCookie(...cookies);
-    } else if (fs.existsSync(COOKIES_FILE)) {
-      const cookiesString = fs.readFileSync(COOKIES_FILE, 'utf8');
-      const cookies = JSON.parse(cookiesString);
-      await page.setCookie(...cookies);
-    } else {
-      console.log('[*] cookies.json ou session_cookie.txt nao encontrados.');
-      await browser.close();
-      return null;
-    }
-
-    const historyUrl = 'https://www.tibia.com/account/?subtopic=accountmanagement&page=tibiacoinshistory';
-    console.log(`[*] Acessando historico de coins: ${historyUrl}...`);
-    await page.goto(historyUrl, { waitUntil: 'load' });
-
-    // Verificar se a sessão expirou
-    const content = await page.content();
-    if (content.includes('input[name="loginemail"]') || !content.includes('Logout')) {
-      console.log('[*] Sessao expirada ou cookies invalidos!');
-      await page.screenshot({ path: 'history_error.png' });
-      await browser.close();
-      return null;
-    }
-
-    console.log(`[*] Pagina carregada com sucesso. Titulo: "${await page.title()}".`);
-    try {
-      await page.screenshot({ path: 'history_success.png' });
-    } catch (e) {
-      console.log(`[-] Erro ao salvar screenshot de sucesso: ${e.message}`);
-    }
-
-    // Extrair tabela do site dentro do contexto do navegador
-    const tableData = await page.evaluate(() => {
-      const tables = Array.from(document.querySelectorAll('table'));
-      const targetTable = tables.find(t => {
-        const text = t.innerText.toLowerCase();
-        return text.includes('date') && (text.includes('balance') || text.includes('description'));
-      });
-      if (!targetTable) return [];
-
-      const rows = Array.from(targetTable.querySelectorAll('tr')).slice(1); // Pular cabecalho
-      return rows.map(row => {
-        const cols = Array.from(row.querySelectorAll('td'));
-        // A linha correta tem 6 colunas: #, Date, Description, Character, Balance, Info
-        if (cols.length < 5) return null;
-        return {
-          date: cols[1].innerText.trim(),
-          description: cols[2].innerText.trim(),
-          amountStr: cols[4].innerText.trim()
-        };
-      }).filter(Boolean);
-    });
-
-    await browser.close();
-
-    // Limpar e formatar transações no contexto do Node.js
-    return tableData.map(tx => {
-      const amountClean = tx.amountStr.replace(/[^0-9+-]/g, '');
-      const amount = parseInt(amountClean, 10) || 0;
-      const combined = `${tx.date}-${tx.description}-${amount}`;
-      const id = crypto.createHash('md5').update(combined).digest('hex');
-
-      let character = 'System';
-      const desc = tx.description.toLowerCase();
-      if (desc.includes('gifted to')) {
-        character = tx.description.split(/ gifted to/i)[0].trim();
-      } else if (desc.includes('gifted from')) {
-        character = tx.description.split(/from /i)[1]?.trim() || 'System';
-      } else if (desc.includes('sent to')) {
-        character = tx.description.split(/to /i)[1]?.trim() || 'System';
+  const { exec } = require('child_process');
+  
+  return new Promise((resolve) => {
+    console.log('[*] Executando scraper.py em segundo plano...');
+    exec('python scraper.py', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`[-] Erro ao executar scraper.py: ${error.message}`);
+        return resolve(null);
       }
-
-      return { id, date: tx.date, description: tx.description, character, amount };
+      if (stderr && stderr.trim()) {
+        console.warn(`[!] Aviso no stderr do scraper.py: ${stderr}`);
+      }
+      
+      try {
+        const result = JSON.parse(stdout.trim());
+        if (result.error === 'session_expired') {
+          console.log('[*] A sessao expirou ou e invalida. Por favor, atualize o session_cookie.txt.');
+          return resolve(null);
+        }
+        if (result.error) {
+          console.error(`[-] Erro retornado pelo scraper.py: ${result.error}`);
+          return resolve(null);
+        }
+        if (result.status === 'success') {
+          return resolve(result.transactions);
+        }
+        return resolve(null);
+      } catch (err) {
+        console.error(`[-] Erro ao decodificar saida do scraper.py: ${err.message}. Saida bruta: ${stdout}`);
+        return resolve(null);
+      }
     });
-
-  } catch (err) {
-    console.error(`[*] Erro ao acessar historico de moedas: ${err.message}`);
-    await browser.close();
-    return null;
-  }
+  });
 }
 
 // Disparo de Webhook
@@ -304,10 +149,10 @@ async function monitorLoop() {
     process.exit(1);
   }
 
-  // Login primario se cookies ou session_cookie nao existirem
-  if (!fs.existsSync('session_cookie.txt') && !fs.existsSync(COOKIES_FILE)) {
+  // Login primario se session_cookie nao existir
+  if (!fs.existsSync('session_cookie.txt')) {
     console.log('[*] Sessao nao encontrada. Executando primeiro login...');
-    const loginOk = await loginAndSaveSession();
+    const loginOk = renewSession();
     if (!loginOk) {
       console.error('[*] Nao foi possivel iniciar o monitor sem logar.');
       process.exit(1);
@@ -326,16 +171,12 @@ async function monitorLoop() {
       console.log(`\n[*] [${new Date().toLocaleTimeString()}] Verificando historico de Tibia Coins...`);
       let transactions = await fetchCoinsTransactions();
 
-      // Se der sessão expirada (retornar null), renova o login
+      // Se der sessão expirada (retornar null), renova o login usando o SeleniumBase UC Mode
       if (transactions === null) {
-        if (fs.existsSync('session_cookie.txt')) {
-          console.log('[*] A sessao do seu session_cookie.txt expirou ou e invalida! Por favor, atualize o cookie no arquivo.');
-        } else {
-          console.log('[*] Tentando renovar a sessao realizando novo login...');
-          const loginOk = await loginAndSaveSession();
-          if (loginOk) {
-            transactions = await fetchCoinsTransactions();
-          }
+        console.log('[*] Tentando renovar a sessao realizando login automatico...');
+        const loginOk = renewSession();
+        if (loginOk) {
+          transactions = await fetchCoinsTransactions();
         }
       }
 
