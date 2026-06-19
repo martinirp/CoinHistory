@@ -331,9 +331,12 @@ async function addUuidToGithub(uuid, character = 'Unknown') {
 }
 
 // Iniciar servidor
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`==================================================`);
   console.log(`🚀 M-Auth Sales Server is running on port ${PORT}`);
   console.log(`🌐 Acesse localmente: http://127.0.0.1:${PORT}`);
   console.log(`==================================================`);
+  
+  // Keep event loop alive (necessário para evitar encerramento no PRoot/Termux)
+  setInterval(() => {}, 60000);
 });
