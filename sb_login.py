@@ -40,35 +40,27 @@ print(f"[*] Iniciando SeleniumBase UC Mode para {url}...")
 with SB(uc=True, xvfb=True, browser="chrome", chromium_arg="--no-sandbox,--disable-dev-shm-usage,--disable-gpu,--single-process") as sb:
     print("[*] Acessando a pagina do Tibia...")
     # reconnect_time maior para dispositivos ARM lentos (Termux)
+    # O UC Mode ja lida com Cloudflare automaticamente via reconexao stealth
+    # NAO usar uc_gui_handle_captcha() nem uc_gui_click_captcha() pois requerem
+    # tkinter/pyautogui que nao funciona em Termux headless sem display real
     sb.uc_open_with_reconnect(url, reconnect_time=8)
     sb.sleep(3)
     sb.save_screenshot("sb_step0_after_open.png")
     print("[*] Screenshot salvo: sb_step0_after_open.png")
 
-    print("[*] Verificando se o Cloudflare Turnstile apareceu...")
-    try:
-        # uc_gui_handle_captcha() e mais robusto que uc_gui_click_captcha() em headless/ARM
-        sb.uc_gui_handle_captcha()
-        print("[+] Captcha tratado ou nao encontrado (seguindo adiante)...")
-    except Exception as e:
-        print(f"[*] Nota do Captcha: {e}")
-
-    # Pausa extra para o Cloudflare liberar e a pagina redirecionar
+    # Pausa para o Cloudflare liberar e a pagina redirecionar
     sb.sleep(4)
-    sb.save_screenshot("sb_step0b_after_captcha.png")
+    sb.save_screenshot("sb_step0b_after_reconnect.png")
 
     # Verifica se ainda esta preso no challenge do Cloudflare
     page_source_check = sb.get_page_source()
     if "Just a moment" in page_source_check or "Checking your browser" in page_source_check:
         print("[!] Cloudflare ainda ativo. Tentando reconexao adicional...")
-        sb.uc_open_with_reconnect(url, reconnect_time=6)
-        sb.sleep(4)
-        try:
-            sb.uc_gui_handle_captcha()
-        except Exception:
-            pass
-        sb.sleep(4)
-        sb.save_screenshot("sb_step0c_retry_captcha.png")
+        sb.uc_open_with_reconnect(url, reconnect_time=10)
+        sb.sleep(6)
+        sb.save_screenshot("sb_step0c_retry_reconnect.png")
+    else:
+        print("[+] Cloudflare nao detectado ou ja resolvido, continuando...")
 
     print("[*] Aguardando o carregamento dos campos de login...")
     try:
