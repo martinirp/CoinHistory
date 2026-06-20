@@ -1,36 +1,13 @@
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const COINS_API_URL = process.env.COINS_API_URL || 'http://127.0.0.1:5001';
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-
-const PAYMENTS_FILE = path.join(__dirname, 'payments.json');
-
-// Carrega os pagamentos recebidos pelo webhook
-function loadPayments() {
-  if (fs.existsSync(PAYMENTS_FILE)) {
-    try {
-      return JSON.parse(fs.readFileSync(PAYMENTS_FILE, 'utf8'));
-    } catch (err) {
-      return [];
-    }
-  }
-  return [];
-}
-
-// Salva os pagamentos
-function savePayments(payments) {
-  try {
-    fs.writeFileSync(PAYMENTS_FILE, JSON.stringify(payments, null, 2), 'utf8');
-  } catch (err) {
-    console.error('[-] Erro ao salvar banco de pagamentos:', err.message);
-  }
-}
 
 // Proxy para buscar dados do personagem no TibiaData (para evitar CORS)
 app.get('/api/character/:name', async (req, res) => {
@@ -63,134 +40,16 @@ app.get('/api/character/:name', async (req, res) => {
   }
 });
 
-// Receber webhook do script de monitoramento
-app.post('/api/webhook-payment', (req, res) => {
-  try {
-    const tx = req.body;
-    console.log(`[*] Webhook recebido:`, tx);
-
-    if (!tx || !tx.id || !tx.character || !tx.amount) {
-      return res.status(400).json({ error: 'Payload invalido' });
-    }
-
-    const payments = loadPayments();
-    
-    // Evitar duplicidade de transações
-    const exists = payments.some(p => p.id === tx.id);
-    if (!exists) {
-      payments.push({
-        id: tx.id,
-        date: tx.date,
-        character: tx.character,
-        amount: tx.amount,
-        used: false,
-        receivedAt: new Date().toISOString()
-      });
-      savePayments(payments);
-      console.log(`[+] Pagamento registrado com sucesso: ${tx.amount} TC de '${tx.character}'`);
-    } else {
-      console.log(`[*] Pagamento ${tx.id} ja estava registrado.`);
-    }
-
-    res.json({ status: 'success' });
-  } catch (err) {
-    console.error('[-] Erro ao processar webhook:', err.message);
-    res.status(500).json({ error: 'Erro interno' });
-  }
-});
-
-// Funções para checagem manual sob demanda no Tibia.com
-function runManualCheck() {
-  const { execSync, exec } = require('child_process');
-  const os = require('os');
-  const pythonCmd = process.env.PYTHON_CMD || (os.platform() === 'win32' ? 'python' : 'python3');
-  
-  return new Promise((resolve) => {
-    const scraperPath = path.join(__dirname, '..', 'scraper.py');
-    const projectDir = path.join(__dirname, '..');
-    
-    console.log(`[*] Executando checagem manual do scraper.py a pedido do usuario... (${pythonCmd})`);
-    
-    exec(`${pythonCmd} scraper.py`, { cwd: projectDir }, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`[-] Erro ao executar scraper.py manual: ${error.message}`);
-        return resolve(false);
-      }
-      
-      try {
-        const result = JSON.parse(stdout.trim());
-        
-        // Se a sessão estiver expirada, tenta renovar
-        if (result.error === 'session_expired') {
-          const scriptPath = path.join(__dirname, '..', 'sb_login.py');
-          const loginDir = path.join(__dirname, '..');
-          try {
-            execSync(`${pythonCmd} "${scriptPath}"`, { cwd: loginDir });
-            
-            // Tenta rodar o scraper de novo
-            const secondStdout = execSync(`${pythonCmd} scraper.py`, { cwd: projectDir });
-            const secondResult = JSON.parse(secondStdout.toString().trim());
-            if (secondResult.status === 'success') {
-              processScraperTransactions(secondResult.transactions);
-              return resolve(true);
-            }
-          } catch (err) {
-            console.error(`[-] Falha ao renovar sessao na checagem manual: ${err.message}`);
-          }
-          return resolve(false);
-        }
-        
-        if (result.status === 'success') {
-          processScraperTransactions(result.transactions);
-          return resolve(true);
-        }
-        return resolve(false);
-      } catch (err) {
-        console.error(`[-] Erro ao processar resultado do scraper manual: ${err.message}. Saida: ${stdout}`);
-        return resolve(false);
-      }
-    });
-  });
-}
-
-function processScraperTransactions(transactions) {
-  if (!transactions || !Array.isArray(transactions)) return;
-  
-  const payments = loadPayments();
-  let updated = false;
-  
-  for (const tx of transactions) {
-    if (tx.amount <= 0) continue;
-    
-    const exists = payments.some(p => p.id === tx.id);
-    if (!exists) {
-      payments.push({
-        id: tx.id,
-        date: tx.date,
-        character: tx.character,
-        amount: tx.amount,
-        used: false,
-        receivedAt: new Date().toISOString()
-      });
-      updated = true;
-      console.log(`[+] Pagamento registrado via checagem manual: ${tx.amount} TC de '${tx.character}'`);
-    }
-  }
-  
-  if (updated) {
-    savePayments(payments);
-  }
-}
-
 // Confirmar pagamento e adicionar licença no GitHub keys.txt
 app.post('/api/confirm-payment', async (req, res) => {
   const { character, uuid } = req.body;
+  console.log(`[*] Recebida requisicao de confirmacao: Personagem='${character}', UUID='${uuid}'`);
 
   if (!character || !uuid) {
     return res.status(400).json({ error: 'Dados incompletos. Nome do personagem e UUID da maquina sao obrigatorios.' });
   }
 
-  const cleanChar = character.trim().toLowerCase();
+  const cleanChar = character.trim();
   const cleanUuid = uuid.trim().toUpperCase();
 
   // Validar formato básico de UUID
@@ -199,46 +58,57 @@ app.post('/api/confirm-payment', async (req, res) => {
   }
 
   try {
-    let payments = loadPayments();
     const requiredAmount = parseInt(process.env.COINS_AMOUNT || '25', 10);
     
-    // 1. Procura primeiro no banco local
-    let paymentIdx = payments.findIndex(p => 
-      p.character.trim().toLowerCase() === cleanChar && 
-      p.amount >= requiredAmount && 
-      !p.used
-    );
-
-    // 2. Se não achar, força uma checagem manual imediata no site do Tibia
-    if (paymentIdx === -1) {
-      console.log(`[*] Pagamento nao encontrado localmente para '${character}'. Executando checagem manual imediata...`);
-      await runManualCheck();
-      
-      // Recarrega os pagamentos atualizados
-      payments = loadPayments();
-      paymentIdx = payments.findIndex(p => 
-        p.character.trim().toLowerCase() === cleanChar && 
-        p.amount >= requiredAmount && 
-        !p.used
-      );
+    // 1. Consultar a Coins API para ver se o pagamento existe e está pendente
+    console.log(`[*] Consultando Coins API para '${cleanChar}' (Mínimo: ${requiredAmount} TC)...`);
+    const checkUrl = `${COINS_API_URL}/api/check-payment?character=${encodeURIComponent(cleanChar)}&amount=${requiredAmount}`;
+    const checkRes = await fetch(checkUrl);
+    
+    if (!checkRes.ok) {
+      const errData = await checkRes.json();
+      return res.status(checkRes.status).json({ 
+        error: errData.error || 'Erro ao comunicar com a API de moedas.' 
+      });
     }
-
-    if (paymentIdx === -1) {
+    
+    const checkData = await checkRes.json();
+    if (!checkData.found || !checkData.payment) {
       return res.status(404).json({ 
         error: `Pagamento nao encontrado no nosso historico de Nora Fylap. Certifique-se de ter enviado ${requiredAmount} Tibia Coins de '${character}' e tente novamente.` 
       });
     }
-
-    const officialCharName = payments[paymentIdx].character;
-    // Pagamento encontrado! Adicionar a licença no GitHub
-    console.log(`[*] Pagamento de '${officialCharName}' localizado. Atualizando chaves no GitHub para UUID: ${cleanUuid}...`);
+    
+    const payment = checkData.payment;
+    const officialCharName = payment.character;
+    
+    // 2. Marcar a transação como usada na Coins API
+    console.log(`[*] Marcando transacao ${payment.id} como usada na Coins API...`);
+    const useUrl = `${COINS_API_URL}/api/use-payment`;
+    const useRes = await fetch(useUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        id: payment.id,
+        metadata: {
+          uuid: cleanUuid,
+          activatedAt: new Date().toISOString()
+        }
+      })
+    });
+    
+    if (!useRes.ok) {
+      const errData = await useRes.json();
+      return res.status(useRes.status).json({ 
+        error: errData.error || 'Erro ao resgatar a transacao de moedas na API.' 
+      });
+    }
+    
+    // 3. Adicionar a licença no GitHub
+    console.log(`[*] Pagamento de '${officialCharName}' localizado e validado. Atualizando chaves no GitHub para UUID: ${cleanUuid}...`);
     await addUuidToGithub(cleanUuid, officialCharName);
-
-    // Marcar pagamento como usado e salvar
-    payments[paymentIdx].used = true;
-    payments[paymentIdx].usedByUuid = cleanUuid;
-    payments[paymentIdx].usedAt = new Date().toISOString();
-    savePayments(payments);
 
     res.json({ status: 'success', message: 'Licenca ativada com sucesso!' });
   } catch (err) {
