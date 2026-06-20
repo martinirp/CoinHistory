@@ -121,8 +121,8 @@ app.post('/api/confirm-payment', async (req, res) => {
 async function addUuidToGithub(uuid, character = 'Unknown') {
   const token = (process.env.MAUTH_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '').trim();
   const owner = (process.env.HWID_REPO_OWNER || '').trim() || 'martinirp';
-  const repo = (process.env.HWID_REPO_NAME || '').trim() || 'mauth-public';
-  const path = (process.env.HWID_FILE_PATH || '').trim() || 'keys.txt';
+  const repo = (process.env.HWID_REPO_NAME || '').trim() || 'licenses';
+  const path = (process.env.HWID_FILE_PATH || '').trim() || 'mauth.txt';
 
   console.log(`[*] addUuidToGithub configs: owner='${owner}', repo='${repo}', path='${path}', tokenLength=${token.length}`);
 
