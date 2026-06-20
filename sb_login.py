@@ -35,48 +35,28 @@ url = "https://www.tibia.com/account/?subtopic=accountmanagement"
 print(f"[*] Iniciando SeleniumBase UC Mode para {url}...")
 
 # UC=True ativa o Undetected-Chromedriver para burlar Cloudflare Turnstile
-# xvfb=True roda o navegador real em um display virtual na memoria (melhor para burlar Cloudflare)
-# chromium_arg="--no-sandbox,--disable-dev-shm-usage" e essencial para rodar no Termux PRoot
-with SB(uc=True, xvfb=True, browser="chrome", chromium_arg="--no-sandbox,--disable-dev-shm-usage,--disable-gpu,--single-process") as sb:
+# xvfb=True roda o navegador real em um display virtual na memória (melhor para burlar Cloudflare)
+# chromium_arg="--no-sandbox,--disable-dev-shm-usage" é essencial para rodar no Termux PRoot
+with SB(uc=True, xvfb=True, browser="chrome", chromium_arg="--no-sandbox,--disable-dev-shm-usage") as sb:
     print("[*] Acessando a pagina do Tibia...")
-    # reconnect_time maior para dispositivos ARM lentos (Termux)
-    # O UC Mode ja lida com Cloudflare automaticamente via reconexao stealth
-    # NAO usar uc_gui_handle_captcha() nem uc_gui_click_captcha() pois requerem
-    # tkinter/pyautogui que nao funciona em Termux headless sem display real
-    sb.uc_open_with_reconnect(url, reconnect_time=8)
-    sb.sleep(3)
-    sb.save_screenshot("sb_step0_after_open.png")
-    print("[*] Screenshot salvo: sb_step0_after_open.png")
-
-    # Pausa para o Cloudflare liberar e a pagina redirecionar
-    sb.sleep(4)
-    sb.save_screenshot("sb_step0b_after_reconnect.png")
-
-    # Verifica se ainda esta preso no challenge do Cloudflare
-    page_source_check = sb.get_page_source()
-    if "Just a moment" in page_source_check or "Checking your browser" in page_source_check:
-        print("[!] Cloudflare ainda ativo. Tentando reconexao adicional...")
-        sb.uc_open_with_reconnect(url, reconnect_time=10)
-        sb.sleep(6)
-        sb.save_screenshot("sb_step0c_retry_reconnect.png")
-    else:
-        print("[+] Cloudflare nao detectado ou ja resolvido, continuando...")
-
+    sb.uc_open_with_reconnect(url, reconnect_time=4)
+    
+    print("[*] Verificando se o Cloudflare Turnstile apareceu...")
+    try:
+        # Tenta clicar no checkbox do Turnstile se ele aparecer na tela
+        sb.uc_gui_click_captcha()
+        print("[+] Captcha clicado ou nao encontrado (seguindo adiante)...")
+    except Exception as e:
+        print(f"[*] Nota do Captcha: {e}")
+        
     print("[*] Aguardando o carregamento dos campos de login...")
     try:
-        sb.wait_for_element('input[name="loginemail"]', timeout=45)
+        sb.wait_for_element('input[name="loginemail"]', timeout=30)
         print("[+] Pagina de login carregada com sucesso!")
         sb.save_screenshot("sb_step1_login_ready.png")
     except Exception as e:
         sb.save_screenshot("sb_step1_error.png")
-        print("[-] Timeout: Nao foi possivel carregar a tela de login.")
-        print("    Verifique: sb_step0_after_open.png, sb_step0b_after_captcha.png, sb_step1_error.png")
-        # Imprime o titulo da pagina e URL atual para diagnostico
-        try:
-            print(f"    URL atual: {sb.get_current_url()}")
-            print(f"    Titulo da pagina: {sb.get_title()}")
-        except Exception:
-            pass
+        print("[-] Timeout: Nao foi possivel carregar a tela de login. Verifique sb_step1_error.png")
         raise e
         
     print("[*] Preenchendo e-mail e senha...")
