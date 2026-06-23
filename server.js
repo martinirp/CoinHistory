@@ -117,61 +117,6 @@ app.post('/api/confirm-payment', async (req, res) => {
   }
 });
 
-// Download da última versão (Redireciona para o S3 da release privada)
-app.get('/api/download/latest', async (req, res) => {
-  try {
-    const owner = (process.env.UPDATE_REPO_OWNER || 'martinirp').trim();
-    const repo = (process.env.UPDATE_REPO_NAME || 'mauth').trim();
-    const token = (process.env.MAUTH_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '').trim();
-
-    if (!token) {
-      return res.status(500).json({ error: 'Token GitHub nao configurado no servidor.' });
-    }
-
-    const releaseUrl = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
-    const releaseRes = await fetch(releaseUrl, {
-      headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Mauth-Sales-App'
-      }
-    });
-
-    if (!releaseRes.ok) {
-      return res.status(404).send('Release nao encontrada no repositorio privado.');
-    }
-
-    const releaseData = await releaseRes.json();
-    const asset = releaseData.assets.find(a => a.name === 'mauth-setup.exe');
-
-    if (!asset) {
-      return res.status(404).send('Instalador mauth-setup.exe nao encontrado na ultima release.');
-    }
-
-    // Fazer fetch no asset para pegar a URL temporária da S3
-    const assetRes = await fetch(asset.url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/octet-stream',
-        'User-Agent': 'Mauth-Sales-App'
-      },
-      redirect: 'manual'
-    });
-
-    if (assetRes.status === 302 || assetRes.status === 301) {
-      const downloadUrl = assetRes.headers.get('location');
-      return res.redirect(downloadUrl);
-    } else {
-      return res.status(500).send('Nao foi possivel obter o link de download direto da AWS S3.');
-    }
-
-  } catch (err) {
-    console.error('[-] Erro ao processar download da ultima release:', err);
-    res.status(500).send('Erro interno do servidor.');
-  }
-});
-
 // Envia a UUID autorizada para a keys.txt no GitHub
 async function addUuidToGithub(uuid, character = 'Unknown') {
   const token = (process.env.MAUTH_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '').trim();
