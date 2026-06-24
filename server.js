@@ -42,8 +42,8 @@ app.get('/api/character/:name', async (req, res) => {
 
 // Confirmar pagamento e adicionar licença no GitHub keys.txt
 app.post('/api/confirm-payment', async (req, res) => {
-  const { character, uuid } = req.body;
-  console.log(`[*] Recebida requisicao de confirmacao: Personagem='${character}', UUID='${uuid}'`);
+  const { character, uuid, product } = req.body;
+  console.log(`[*] Recebida requisicao de confirmacao: Personagem='${character}', UUID='${uuid}', Produto='${product}'`);
 
   if (!character || !uuid) {
     return res.status(400).json({ error: 'Dados incompletos. Nome do personagem e UUID da maquina sao obrigatorios.' });
@@ -51,6 +51,7 @@ app.post('/api/confirm-payment', async (req, res) => {
 
   const cleanChar = character.trim();
   const cleanUuid = uuid.trim().toUpperCase();
+  const cleanProduct = (product || 'mauth').trim().toLowerCase();
 
   // Validar formato básico de UUID
   if (cleanUuid.length < 10) {
@@ -58,8 +59,17 @@ app.post('/api/confirm-payment', async (req, res) => {
   }
 
   try {
-    const requiredAmount = parseInt(process.env.COINS_AMOUNT || '25', 10);
-    
+    let requiredAmount = 25;
+    let filePath = 'mauth.txt';
+
+    if (cleanProduct === 'bossbot' || cleanProduct === 'bossbot2') {
+      requiredAmount = parseInt(process.env.BOSSBOT_COINS_AMOUNT || '1000', 10);
+      filePath = process.env.HWID_FILE_PATH_BOSSBOT || 'bossbot.txt';
+    } else {
+      requiredAmount = parseInt(process.env.MAUTH_COINS_AMOUNT || '25', 10);
+      filePath = process.env.HWID_FILE_PATH_MAUTH || 'mauth.txt';
+    }
+
     // 1. Consultar a Coins API para ver se o pagamento existe e está pendente
     console.log(`[*] Consultando Coins API para '${cleanChar}' (Mínimo: ${requiredAmount} TC)...`);
     const checkUrl = `${COINS_API_URL}/api/check-payment?character=${encodeURIComponent(cleanChar)}&amount=${requiredAmount}`;
@@ -107,8 +117,8 @@ app.post('/api/confirm-payment', async (req, res) => {
     }
     
     // 3. Adicionar a licença no GitHub
-    console.log(`[*] Pagamento de '${officialCharName}' localizado e validado. Atualizando chaves no GitHub para UUID: ${cleanUuid}...`);
-    await addUuidToGithub(cleanUuid, officialCharName);
+    console.log(`[*] Pagamento de '${officialCharName}' localizado e validado. Atualizando chaves no GitHub em ${filePath} para UUID: ${cleanUuid}...`);
+    await addUuidToGithub(cleanUuid, officialCharName, filePath);
 
     res.json({ status: 'success', message: 'Licenca ativada com sucesso!' });
   } catch (err) {
@@ -118,19 +128,19 @@ app.post('/api/confirm-payment', async (req, res) => {
 });
 
 // Envia a UUID autorizada para a keys.txt no GitHub
-async function addUuidToGithub(uuid, character = 'Unknown') {
+async function addUuidToGithub(uuid, character = 'Unknown', filePath = 'mauth.txt') {
   const token = (process.env.MAUTH_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '').trim();
   const owner = (process.env.HWID_REPO_OWNER || '').trim() || 'martinirp';
   const repo = (process.env.HWID_REPO_NAME || '').trim() || 'licenses';
-  const path = (process.env.HWID_FILE_PATH || '').trim() || 'mauth.txt';
 
-  console.log(`[*] addUuidToGithub configs: owner='${owner}', repo='${repo}', path='${path}', tokenLength=${token.length}`);
+  console.log(`[*] addUuidToGithub configs: owner='${owner}', repo='${repo}', filePath='${filePath}', tokenLength=${token.length}`);
 
   if (!token || token.includes('insira_seu_token')) {
     throw new Error('Chave de API do GitHub (MAUTH_GITHUB_TOKEN) nao configurada no .env do servidor de vendas.');
   }
 
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+
   const headers = {
     'Authorization': `token ${token}`,
     'Accept': 'application/vnd.github.v3+json',
@@ -138,16 +148,16 @@ async function addUuidToGithub(uuid, character = 'Unknown') {
   };
 
   // 1. Baixar o arquivo de licenças atual do GitHub (ou preparar criação caso não exista)
-  console.log(`[*] Buscando sha do arquivo ${path} no GitHub...`);
+  console.log(`[*] Buscando sha do arquivo ${filePath} no GitHub...`);
   const getRes = await fetch(url, { headers });
   
   let currentSha = undefined;
   let contentText = "";
 
   if (getRes.status === 404) {
-    console.log(`[*] Arquivo ${path} nao existe no GitHub. Ele sera criado automaticamente.`);
+    console.log(`[*] Arquivo ${filePath} nao existe no GitHub. Ele sera criado automaticamente.`);
   } else if (!getRes.ok) {
-    throw new Error(`Falha ao ler ${path} do GitHub: ${getRes.status} ${getRes.statusText}`);
+    throw new Error(`Falha ao ler ${filePath} do GitHub: ${getRes.status} ${getRes.statusText}`);
   } else {
     const getJson = await getRes.json();
     currentSha = getJson.sha;
@@ -158,7 +168,7 @@ async function addUuidToGithub(uuid, character = 'Unknown') {
   const cleanUuid = uuid.trim().toUpperCase();
   const lines = contentText.split('\n').map(l => l.trim().toUpperCase());
   if (lines.includes(cleanUuid)) {
-    console.log(`[*] UUID ${cleanUuid} ja cadastrado no arquivo ${path} do GitHub.`);
+    console.log(`[*] UUID ${cleanUuid} ja cadastrado no arquivo ${filePath} do GitHub.`);
     return true;
   }
 
@@ -171,7 +181,7 @@ async function addUuidToGithub(uuid, character = 'Unknown') {
   updatedText += `${cleanUuid}\n`;
 
   // 4. Salvar de volta no GitHub (PUT)
-  console.log(`[*] Gravando novo UUID no arquivo ${path} do GitHub...`);
+  console.log(`[*] Gravando novo UUID no arquivo ${filePath} do GitHub...`);
   const putBody = {
     message: `Add authorized license key: ${cleanUuid} (${character})`,
     content: Buffer.from(updatedText, 'utf8').toString('base64'),

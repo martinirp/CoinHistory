@@ -31,18 +31,30 @@
             <p class="tagline">Gerenciador Seguro de Contas Tibia & Autenticador TOTP</p>
         </header>
 
+        <!-- Selector Tabs -->
+        <div class="product-tabs">
+            <button class="tab-btn active" data-product="mauth">
+                <span class="tab-icon">🛡️</span>
+                <span class="tab-text">M·Auth</span>
+            </button>
+            <button class="tab-btn" data-product="bossbot">
+                <span class="tab-icon">🐲</span>
+                <span class="tab-text">BossBot 2</span>
+            </button>
+        </div>
+
         <section class="sales-grid">
             
             <!-- Apresentação do Produto -->
             <div class="product-info">
-                <h1 class="title">Adquira sua Licença do <span class="highlight">M·Auth</span></h1>
-                <p class="description">
+                <h1 class="title">Adquira sua Licença do <span class="highlight" id="product-title">M·Auth</span></h1>
+                <p class="description" id="product-desc">
                     Desbloqueie o poder do autenticador de contas definitivo. Uma ferramenta portátil, criptografada localmente e integrada ao Windows para automação instantânea sem perda de contas.
                 </p>
 
                 <!-- Botão de Download -->
                 <div style="margin-bottom: 30px;">
-                    <a href="https://github.com/martinirp/mauth-public/releases/latest/download/mauth-setup.exe" class="btn-primary" style="display: inline-flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; width: auto; padding: 14px 28px; font-size: 16px;">
+                    <a id="download-link" href="https://github.com/martinirp/mauth-public/releases/latest/download/mauth-setup.exe" class="btn-primary" style="display: inline-flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; width: auto; padding: 14px 28px; font-size: 16px;">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="7 10 12 15 17 10"></polyline>
@@ -55,24 +67,24 @@
                 <!-- Benefícios -->
                 <div class="features-list">
                     <div class="feature-item">
-                        <div class="feature-icon">🛡️</div>
+                        <div class="feature-icon" id="feat-icon-1">🛡️</div>
                         <div class="feature-content">
-                            <h3>Segurança Offline e Criptografia</h3>
-                            <p>As contas e senhas mestras ficam salvas apenas no seu computador com proteção AES-256.</p>
+                            <h3 id="feat-title-1">Segurança Offline e Criptografia</h3>
+                            <p id="feat-desc-1">As contas e senhas mestras ficam salvas apenas no seu computador com proteção AES-256.</p>
                         </div>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon">⚡</div>
+                        <div class="feature-icon" id="feat-icon-2">⚡</div>
                         <div class="feature-content">
-                            <h3>Automação PowerShell Avançada</h3>
-                            <p>Otimize sua gameplay com o Login Automatizado <i>stealth</i>, Loot Splitter de alta precisão e Smart Exit de resposta instantânea para situações críticas.</p>
+                            <h3 id="feat-title-2">Automação PowerShell Avançada</h3>
+                            <p id="feat-desc-2">Otimize sua gameplay com o Login Automatizado <i>stealth</i>, Loot Splitter de alta precisão e Smart Exit de resposta instantânea para situações críticas.</p>
                         </div>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon">🔄</div>
+                        <div class="feature-icon" id="feat-icon-3">🔄</div>
                         <div class="feature-content">
-                            <h3>Sincronização Integrada</h3>
-                            <p>Acompanhe level, vocação e status de login dos seus personagens diretamente no grid do app.</p>
+                            <h3 id="feat-title-3">Sincronização Integrada</h3>
+                            <p id="feat-desc-3">Acompanhe level, vocação e status de login dos seus personagens diretamente no grid do app.</p>
                         </div>
                     </div>
                 </div>
@@ -106,7 +118,7 @@
                         <div class="input-group">
                             <label for="hwid-uuid">UUID de Hardware da sua Máquina</label>
                             <input type="text" id="hwid-uuid" placeholder="Ex: F60AC7D1-EAD3-77E2-E60F-BCFCE78A91BA" autocomplete="off">
-                            <span class="input-desc">UUID exibida na tela vermelha de bloqueio do seu M-Auth.</span>
+                            <span class="input-desc" id="uuid-desc-text">UUID exibida na tela vermelha de bloqueio do seu M-Auth.</span>
                         </div>
 
                         <button class="btn-primary" id="btn-next-1">Continuar</button>
@@ -151,7 +163,7 @@
 
                         <div class="payment-instructions">
                             <div class="instruction-box">
-                                <p class="action">Envie <span class="accent-text">25 Tibia Coins</span></p>
+                                <p class="action">Envie <span class="accent-text" id="coins-amount-text">25 Tibia Coins</span></p>
                                 <p class="target">para o personagem: <strong id="recipient-name" class="selectable">Nora Fylap</strong></p>
                             </div>
                             <div class="tip-box">
@@ -179,14 +191,14 @@
                             <span class="success-icon">✔️</span>
                             <h2>Licença Autorizada!</h2>
                         </div>
-                        <p class="subtitle">O pagamento de 25 Tibia Coins foi recebido e seu UUID foi registrado com sucesso.</p>
+                        <p class="subtitle">O pagamento de <span id="success-coins-amount">25</span> Tibia Coins foi recebido e seu UUID foi registrado com sucesso.</p>
 
                         <div class="hwid-registered-box">
-                            <span class="label">UUID Habilitada no mauth.txt:</span>
+                            <span class="label" id="success-file-label">UUID Habilitada no mauth.txt:</span>
                             <code id="success-uuid">-</code>
                         </div>
 
-                        <p class="info-note">Você já pode abrir o seu M·Auth. A tela de bloqueio sumirá e o app iniciará normalmente.</p>
+                        <p class="info-note" id="success-info-note">Você já pode abrir o seu M·Auth. A tela de bloqueio sumirá e o app iniciará normalmente.</p>
 
                         <button class="btn-primary" onclick="window.location.reload()">Adquirir Outra Licença</button>
                     </div>
@@ -199,7 +211,7 @@
 
         <!-- Footer -->
         <footer class="app-footer">
-            <p>© 2026 M·Auth. Todos os direitos reservados. Design e licenças oficiais por Martinirp.</p>
+            <p>© 2026 AUTH·X. Todos os direitos reservados. Design e licenças oficiais por Martinirp.</p>
         </footer>
 
     </main>
